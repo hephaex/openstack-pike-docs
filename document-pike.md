@@ -280,8 +280,6 @@ iface ens3 inet static
       dns-nameservers 10.0.0.1
 ```
 
-\clearpage
-
 + ネットワークの設定を反映
 
 各ノードで変更した設定を反映させるため、ホストを再起動します。
@@ -289,6 +287,8 @@ iface ens3 inet static
 ```
 $ sudo reboot
 ```
+
+\clearpage
 
 ## ホスト名と静的な名前解決の設定
 
@@ -529,6 +529,8 @@ NODE_IP_ADDRESS=10.0.0.111   ← RabbitMQサーバーノード(本例はcontroll
 controller# service rabbitmq-server restart
 ```
 
+\clearpage
+
 ### RabbitMQサービスのログを確認
 
 + ログの確認
@@ -610,7 +612,6 @@ MariaDB [(none)]> show databases;
 | information_schema |
 | keystone           |
 +--------------------+
-2 rows in set (0.00 sec)
 ```
 
 \clearpage
@@ -658,8 +659,10 @@ controller# su -s /bin/sh -c "keystone-manage db_sync" keystone
 keystone-manageコマンドを実行してFernetキーを初期化します。
 
 ```
-controller# keystone-manage fernet_setup --keystone-user keystone --keystone-group keystone
-controller# keystone-manage credential_setup --keystone-user keystone --keystone-group keystone
+controller# keystone-manage fernet_setup --keystone-user keystone \
+ --keystone-group keystone
+controller# keystone-manage credential_setup --keystone-user keystone \
+ --keystone-group keystone
 ```
 
 ### Identityサービスのデプロイ
@@ -947,7 +950,6 @@ MariaDB [(none)]> show databases;
 | information_schema |
 | glance             |
 +--------------------+
-2 rows in set (0.00 sec)
 ```
 
 \clearpage
@@ -1234,7 +1236,6 @@ MariaDBにnovaユーザーでログインし、データベースの閲覧が可
 ```
 controller# mysql -u nova -p
 Enter password: ← MariaDBのnovaパスワードpasswordを入力
-...
 MariaDB [(none)]> show databases;
 +--------------------+
 | Database           |
@@ -1244,7 +1245,6 @@ MariaDB [(none)]> show databases;
 | nova_api           |
 | nova_cell0         |
 +--------------------+
-4 rows in set (0.00 sec)
 ```
 
 \clearpage
@@ -1331,14 +1331,13 @@ Repeat User Password: password
 +---------------------+----------------------------------+
 ```
 
+\clearpage
+
 ### Placementユーザーをadminロールに追加
 
 ```
 controller# openstack role add --project service --user placement admin
 ```
-
-\clearpage
-
 
 ### Placementサービスの作成
 
@@ -1404,8 +1403,6 @@ connection = mysql+pymysql://nova:password@controller/nova
 [glance]
 ...
 api_servers = http://controller:9292
-
-(次のページに続きます→)
 ```
 
 \clearpage
@@ -1540,8 +1537,6 @@ enabled = True
 vncserver_listen = 0.0.0.0
 vncserver_proxyclient_address = $my_ip
 novncproxy_base_url = http://controller:6080/vnc_auto.html
-
-(次のページに続きます→)
 ```
 
 \clearpage
@@ -1650,6 +1645,8 @@ Checking host mapping for compute host 'compute': 6ac62de6-08bf-4bba-aa4e-f10274
 Creating host mapping for compute host 'compute': 6ac62de6-08bf-4bba-aa4e-f1027419bc59
 ```
 
+\clearpage
+
 ### Novaサービスの確認
 
 Novaコンピュートサービスの状態を確認します。`openstack compute service list`コマンドで関連サービスのステータスを確認します。また`openstack catalog list`コマンドでIdentityサービスのAPIエンドポイントのリストを表示して、サービスとの接続を確認します。nova,placement,keystone,glanceサービスが表示され、それぞれpublic,admin,internalのエンドポイントが表示されていることを確認します。
@@ -1712,7 +1709,6 @@ MariaDB [(none)]> show databases;
 | information_schema |
 | neutron            |
 +--------------------+
-2 rows in set (0.00 sec)
 ```
 
 ※ユーザーneutronでログイン可能でデータベースが閲覧可能なら問題ありません。
@@ -1940,7 +1936,7 @@ controller# less /etc/neutron/plugins/ml2/linuxbridge_agent.ini | egrep -v "^\s*
 
 #### ※ ML2プラグインのl2populationについて
 
-OpenStack Mitaka以降のバージョンの公式手順書では、ML2プラグインのmechanism_driversとしてlinuxbridgeとl2populationが指定されています。l2populationが有効だとこれまでの動きと異なり、インスタンスが起動してもネットワークが有効化されるまで通信ができません。つまりNeutronネットワークを構築してルーターのパブリック側のIPアドレス宛にPingコマンドを実行して確認できても疎通ができません。このネットワーク有効化の有無についてメッセージキューサービスが監視して制御しています。
+OpenStack Mitaka以降のバージョンの公式手順書では、ML2プラグインのmechanism_driversとしてlinuxbridgeとl2populationが指定されています。l2populationが有効だとこれまでの動きと異なり、インスタンスが起動してもネットワークが有効化されるまで通信ができません。つまりNeutronネットワークを構築してルーターのパブリック側のIPアドレス宛にPingコマンドを実行しても疎通ができません。このネットワーク有効化の有無についてメッセージキューサービスが監視して制御しています。
 従って、これまでのバージョン以上にメッセージキューサービス（本例や公式手順ではしばしばRabbitMQが使用されます）が確実に動作している必要があります。このような仕組みが導入されたのは、不要なパケットがネットワーク内に流れ続けないようにするためです。
 
 ただし、弊社でESXi仮想マシン環境に構築したOpenStack環境においてl2populationが有効化されていると想定通り動かないという事象が発生することを確認してます。その他のハイパーバイザーでは確認していませんが、ネットワーク通信に支障が起きる場合はl2populationをオフに設定すると改善される場合があります。修正箇所は次の通りです。
@@ -2291,8 +2287,6 @@ controllerノードにDashboardをインストールします。
 controller# apt install openstack-dashboard
 ```
 
-\clearpage
-
 ## Dashboardの設定を変更
 
 インストールしたDashboardの設定を行います。
@@ -2327,6 +2321,8 @@ OPENSTACK_KEYSTONE_DEFAULT_ROLE = "user"
 TIME_ZONE = "Asia/Tokyo"  ← 変更(日本の場合)
 ```
 
+\clearpage
+
 次のコマンドで正しく設定を行ったか確認します。
 
 ```
@@ -2338,8 +2334,6 @@ controller# less /etc/openstack-dashboard/local_settings.py  | egrep -v "^\s*$|^
 ```
 controller# service apache2 restart
 ```
-
-\clearpage
 
 ## Dashboardにアクセス
 
@@ -2438,6 +2432,8 @@ OpenStack Dashboardにdemoユーザーでログインして、インスタンス
 
 DNSサーバーを複数指定したい場合は1行毎に記述します。IPアドレス割当プールはネットワークアドレスで定義したネットワーク範囲全てを割り当てても良い場合は定義する必要はありません。
 
+\clearpage
+
 3. 「プロジェクト > ネットワーク > ルーター」でルーターを作成
 
 | 項目 | 設定 |
@@ -2468,8 +2464,6 @@ DNSサーバーを複数指定したい場合は1行毎に記述します。IP�
 CirrOSを動かすだけであれば、1vCPU,64MBメモリー,1GBストレージあれば充分です。
 Ubuntuを動かす場合は、1vCPU,1GBメモリー,4GBストレージ以上のスペックが必要です。
 
-\clearpage
-
 ## セキュリティグループの設定
 
 OpenStackの上で動かすインスタンスのファイアウォール設定は、セキュリティグループで行います。ログイン後、次の手順でセキュリティグループを設定できます。
@@ -2497,8 +2491,6 @@ OpenStackではインスタンスへのアクセスはデフォルトで公開�
 5. キーペア名を入力
 6. 「キーペアの作成」ボタンを押下
 7. キーペア（拡張子:pem）ファイルをダウンロード
-
-\clearpage
 
 ## インスタンスの起動
 
