@@ -1028,7 +1028,7 @@ controller# apt install glance
 
 ## Glanceの設定変更
 
-Glance(APIとレジストリー)の設定を行います。
+Glance(APIとレジストリー)の設定を行います。
 
 ```
 controller# vi /etc/glance/glance-api.conf
