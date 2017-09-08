@@ -1,7 +1,7 @@
 ---
 documentclass: ltjsarticle
 title: OpenStack 構築手順書 Pike版
-date: 0.9.0-1 (2017/09/07)
+date: 0.9.0-2 (2017/09/08)
 author: 日本仮想化技術株式会社
 toc: yes
 output:
@@ -19,6 +19,7 @@ header-includes:
 |バージョン|更新日|更新内容|
 |:---|:---|:---|
 |0.9.0-1|2017/09/07|Pike版 初版|
+|0.9.0-2|2017/09/08|要件などについて加筆|
 
 
 ```
@@ -34,10 +35,12 @@ https://github.com/virtualtech/openstack-pike-docs/issues
 
 # OpenStack 構築構築
 
-本章は、[OpenStack Foundation](https://openstack.org)が公開している公式ドキュメント「[OpenStack Installation Tutorial](https://docs.openstack.org/)」の内容から、「Keystone,Glance,Nova,Neutron,Horizon」までの構築手順をベースに加筆したものです。
+本章は、「[OpenStack Foundation](https://openstack.org)」が公開している公式ドキュメント「[OpenStack Installation Tutorial](https://docs.openstack.org/)」の内容から、「Keystone,Glance,Nova,Neutron,Horizon」までの構築手順をベースに加筆したものです。
 OpenStackをUbuntu Server 16.04ベースで構築する手順を解説しています。
 
-Canonical社が提供するCloud Archiveリポジトリーを使って、OpenStackの最新版Pikeを導入しましょう。
+Canonical社が提供するCloud Archiveリポジトリーのパッケージを使って、OpenStackの最新版Pikeを導入しましょう。
+
+Pikeでも旧来のバージョンにあった設定がいくつか削除されるなど、重要な変更が存在します。「[リリースノート](https://releases.openstack.org/pike/)」を構築を始める前にご覧ください。
 
 \clearpage
 
@@ -84,6 +87,16 @@ https://wiki.ubuntu.com/Kernel/LTSEnablementStack
 | DHCP Agent
 | Metadata Agent
 
+
+### ノードの性能要件
+
+最低限、以下のスペックを満たす必要があります。これはOpenStack Pike環境を作って、4個程度の[CirrOS](http://download.cirros-cloud.net/)、もしくは2個程度の[Ubuntu](http://cloud-images.ubuntu.com/releases/16.04/)インスタンスを起動することを想定しています。要件にあったスペックをご用意ください。
+
+|内容   |コントローラー|コンピュート|
+|-----|-------|------|
+|CPU  |3      |4     |
+|メモリー |6GB    |4GB   |
+|ストレージ|30GB   |30GB  |
 
 \clearpage
 
