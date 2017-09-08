@@ -1,7 +1,7 @@
 ---
 documentclass: ltjsarticle
 title: OpenStack 構築手順書 Pike版
-date: 0.9.0-2 (2017/09/08)
+date: 0.9.1 (2017/09/08)
 author: 日本仮想化技術株式会社
 toc: yes
 output:
@@ -20,7 +20,7 @@ header-includes:
 |:---|:---|:---|
 |0.9.0-1|2017/09/07|Pike版 初版|
 |0.9.0-2|2017/09/08|要件などについて加筆|
-
+|0.9.1|2017/09/08|表記揺れや誤記の修正。DashboardのUI変更への対応|
 
 ```
 筆者注:
@@ -372,7 +372,7 @@ OK
 OpenStackクライアントをインストールします。依存するパッケージは全てインストールします。
 
 ```
-controller# apt-get install python-openstackclient
+controller# apt install python-openstackclient
 ```
 
 ## 時刻同期サーバーのインストールと設定
@@ -853,22 +853,11 @@ controller# unset OS_AUTH_URL OS_PASSWORD
     + keystone-paste.iniを開き、[pipeline:public_api]と[pipeline:admin_api]と[pipeline:api_v3]セクション（訳者注:..のpipeline行) に`admin_token_auth`があれば、削除します。
 
 ```
+controller# grep admin_token_auth /etc/keystone/keystone-paste.ini
+(設定ファイルを確認)
+
 controller# vi /etc/keystone/keystone-paste.ini
-...
-[pipeline:public_api]
-# The last item in this pipeline must be public_service or an equivalent
-# application. It cannot be a filter.
-pipeline = healthcheck cors sizelimit http_proxy_to_wsgi osprofiler url_normalize request_id build_auth_context token_auth json_body ec2_extension public_service
-
-[pipeline:admin_api]
-# The last item in this pipeline must be admin_service or an equivalent
-# application. It cannot be a filter.
-pipeline = healthcheck cors sizelimit http_proxy_to_wsgi osprofiler url_normalize request_id build_auth_context token_auth json_body ec2_extension s3_extension admin_service
-
-[pipeline:api_v3]
-# The last item in this pipeline must be service_v3 or an equivalent
-# application. It cannot be a filter.
-pipeline = healthcheck cors sizelimit http_proxy_to_wsgi osprofiler url_normalize request_id build_auth_context token_auth json_body ec2_extension_v3 s3_extension service_v3
+(設定ファイルにadmin_token_authがあれば取り除く)
 ```
 
 \clearpage
@@ -1385,7 +1374,7 @@ controller# apt install nova-api nova-conductor nova-consoleauth \
 ## Novaの設定変更
 
 nova.confの設定を行います。
-すでにいくつかの設定は行われています。各セクションから設定項目を探して同じように設定するか、項目が見つからない場合は設定を追加してください。言及していない設定はそのままで構いません。viで`/[DEFAULT`のようにセクション名の最後の括弧をのぞいて検索すると項目を見つけられやすいと思います。
+すでにいくつかの設定は行われています。各セクションから設定項目を探して同じように設定するか、項目が見つからない場合は設定を追加してください。言及していない設定はそのままで構いません。viで`/[DEFAULT`のようにセクション名の最後の括弧をのぞいて検索すると、項目を見つけられやすいと思います。
 
 `[database]`のconnectionと、`[placement]`のos_region_nameが定義済みになっていました。別の設定をする場合は注意しましょう。引き続き`[DEFAULT]`セクションにlock_pathが定義されていますので、コメントアウトするようにしましょう。
 
@@ -1394,6 +1383,7 @@ controller# vi /etc/nova/nova.conf
 
 [DEFAULT]
 ...
+#lock_path = /var/lock/nova  ← コメントアウト
 my_ip = 10.0.0.111
 transport_url = rabbit://openstack:password@controller
 use_neutron = True
@@ -1477,6 +1467,9 @@ controller# su -s /bin/sh -c "nova-manage cell_v2 create_cell --name=cell1 --ver
 controller# su -s /bin/sh -c "nova-manage db sync" nova
 ```
 
+最後のコマンドは処理に少々、時間がかかります。
+
+
 ### Nova Cellの確認
 
 ```
@@ -1522,7 +1515,9 @@ compute# apt install nova-compute
 ## Novaの設定を変更
 
 nova.confの設定を行います。
-すでにいくつかの設定は行われています。各セクションから設定項目を探して同じように設定するか、項目が見つからない場合は設定を追加してください。言及していない設定はそのままで構いません。viで`/[DEFAULT`のようにセクション名の最後の括弧をのぞいて検索すると項目を見つけられやすいと思います。
+すでにいくつかの設定は行われています。各セクションから設定項目を探して同じように設定するか、項目が見つからない場合は設定を追加してください。言及していない設定はそのままで構いません。viで`/[DEFAULT`のようにセクション名の最後の括弧をのぞいて検索すると、項目を見つけられやすいと思います。
+
+computeノードではデータベースサーバーとの接続は不要なため、設定ファイルにデータベースの項目が設定されている場合はコメント化してください。
 
 ```
 compute# vi /etc/nova/nova.conf
@@ -1538,7 +1533,7 @@ my_ip = 10.0.0.112
 
 [api]
 ...
-auth_strategy = keyston
+auth_strategy = keystone
 
 [glance]
 ...
@@ -1609,7 +1604,7 @@ compute# cat /proc/cpuinfo |egrep 'vmx|svm'|wc -l
 4
 ```
 
-VMXもしくはSVM対応CPUの場合はvirt_type = kvmと設定することにより、仮想化部分のパフォーマンスが向上します。先のコマンドの実行結果が0になる場合はvirt_typeとしてqemuを設定してください。
+VMXもしくはSVM対応CPUの場合は「virt_type = kvm」と設定することにより、仮想化部分のパフォーマンスが向上します。先のコマンドの実行結果が0になる場合は「virt_type = qemu」を設定してください。
 
 ```
 compute# vi /etc/nova/nova-compute.conf
@@ -1627,13 +1622,15 @@ virt_type = kvm
 compute# service nova-compute restart
 ```
 
-nova-computeサービスが起動しない場合は/var/log/nova/nova-compute.logを確認してください。`AMQP server on controller:5672 is unreachable`のようなメッセージが出る場合はcontrollerのRabbitMQサービスが起動しているか、Bind IPアドレスやポートは適切かを確認します。
+nova-computeサービスが起動しない場合は/var/log/nova/nova-compute.logを確認してください。Ocata以降ではPlacement APIの設定がnova.confに存在しないとnova-computeサービスを起動できませんので注意してください。
+
+また、`AMQP server on controller:5672 is unreachable`のようなメッセージが出る場合はcontrollerのRabbitMQサービスが起動しているか、Bind IPアドレスやポートは適切かを確認します。
 
 \clearpage
 
 ## コントローラーノードとの疎通確認
 
-疎通確認はcontrollerノード上にて、admin環境変数設定ファイルを読み込んで行います。
+computeとcontrollerノードの疎通を確認します。操作するノードをcontrollerノードに切り替えて、各コマンドを実行してください。
 
 ```
 controller# source admin-openrc
@@ -1809,7 +1806,7 @@ controller# apt install neutron-server neutron-plugin-ml2 \
 ### Neutronサーバーの設定
 
 controllerノードのneutron.confの設定を行います。
-すでにいくつかの設定は行われています。各セクションから設定項目を探して同じように設定するか、項目が見つからない場合は設定を追加してください。言及していない設定はそのままで構いません。viで`/[DEFAULT`のようにセクション名の最後の括弧をのぞいて検索すると項目を見つけられやすいと思います。
+すでにいくつかの設定は行われています。各セクションから設定項目を探して同じように設定するか、項目が見つからない場合は設定を追加してください。言及していない設定はそのままで構いません。viで`/[DEFAULT`のようにセクション名の最後の括弧をのぞいて検索すると、項目を見つけられやすいと思います。
 
 ```
 controller# vi /etc/neutron/neutron.conf
@@ -1925,8 +1922,8 @@ local_ipは、先にphysical_interface_mappingに設定したNIC側のIPアド�
 ```
 [vxlan]
 enable_vxlan = True         ← コメントをはずす
-local_ip = 10.0.0.111       ← 追記
-l2_population = True        ← 追記 ※
+local_ip = 10.0.0.111       ← 変更
+l2_population = True        ← 変更 ※
 ```
 
 エージェントとセキュリティグループの設定を行います。
@@ -1980,12 +1977,13 @@ l2_population = false
 
 ### Layer-3エージェントの設定
 
-external_network_bridgeは単一のエージェントで複数の外部ネットワークを有効にするには値を指定してはならないため、値を空白にします。
+
+[DEFAULT]セクションで、利用するインターフェイスドライバーを指定します。Linuxブリッジを利用するため、次のように設定します。
 
 ```
 controller# vi /etc/neutron/l3_agent.ini
 
-[DEFAULT]  (最終行に以下を追記)
+[DEFAULT]
 ...
 interface_driver = linuxbridge
 ```
@@ -2008,6 +2006,7 @@ dnsmasq_config_file =/etc/neutron/dnsmasq-neutron.conf
 Dnsmasqのログの設定とDHCPオプションの設定です。VXLANの追加ヘッダー対策のため、MTUを1454に設定するには次のようにDHCPオプションでパラメーターを渡すことができます。インスタンスが起動するときにインスタンスイメージにDHCPクライアントがある場合は全てのインスタンスでこのMTU値が反映されます。
 
 ```
+controller# vi /etc/neutron/dnsmasq-neutron.conf
 log-facility = /var/log/neutron/dnsmasq.log
 log-dhcp
 dhcp-option=26,1454
@@ -2047,7 +2046,7 @@ controller# less /etc/neutron/metadata_agent.ini | egrep -v "^\s*$|^\s*#"
 
 ## Novaの設定を変更
 
-Novaの設定ファイルにNeutronの設定を追記します。
+Novaの設定ファイルの`[neutron]`セクションに、Neutronの設定を追記します。
 
 ```
 controller# vi /etc/nova/nova.conf
@@ -2082,6 +2081,9 @@ controller# less /etc/nova/nova.conf | egrep -v "^\s*$|^\s*#"
 ```
 controller# su -s /bin/sh -c "neutron-db-manage --config-file /etc/neutron/neutron.conf \
   --config-file /etc/neutron/plugins/ml2/ml2_conf.ini upgrade head" neutron
+...
+INFO  [alembic.runtime.migration] Running upgrade f83a0b2964d0 -> fd38cd995cc0, change shared attribute for firewall resource
+  OK    ← 最後にOKと出力されることを確認
 ```
 
 \clearpage
@@ -2140,7 +2142,7 @@ compute# apt install neutron-linuxbridge-agent
 ### Neutronの設定
 
 neutron.confの設定を行います。
-すでにいくつかの設定は行われているので各セクションに同じように設定がされているか、されていない場合は設定を追加してください。言及していない設定はそのままで構いません。
+すでにいくつかの設定は行われているので、各セクションに同じように設定がされているか確認し、されていない場合は設定を追加してください。言及していない設定はそのままで構いません。
 
 ```
 compute# vi /etc/neutron/neutron.conf
@@ -2176,7 +2178,7 @@ password = password
 ```
 
 本書の構成では、コンピュートノードのNeutron.confにはデータベースの指定は不要です。
-データベースの指定がデフォルトで存在していますが、コメントアウトしてもしなくても構いません。
+データベースの指定がデフォルトで存在しています。この設定はコメントアウトしてもしなくても構いません。
 次のコマンドで正しく設定を行ったか確認します。
 
 ```
@@ -2188,7 +2190,7 @@ compute# less /etc/neutron/neutron.conf | egrep -v "^\s*$|^\s*#"
 ### Linuxブリッジエージェントの設定
 
 linuxbridge_agent.iniの設定を行います。
-すでにいくつかの設定は行われているので各セクションに同じように設定がされているか、されていない場合は設定を追加してください。言及していない設定はそのままで構いません。
+すでにいくつかの設定は行われているので、各セクションに同じように設定がされているか確認し、されていない場合は設定を追加してください。言及していない設定はそのままで構いません。
 
 physical_interface_mappingsにはパブリック側のネットワークに接続しているインターフェイスを指定します。本書ではens3を指定します。
 local_ipにはパブリック側に接続しているNICに設定しているIPアドレスを指定します。
@@ -2243,7 +2245,7 @@ password = password  ←neutronユーザーのパスワード
 次のコマンドで正しく設定を行ったか確認します。
 
 ```
-compute# less /etc/nova/nova.conf | grep -v "^\s*$" | grep -v "^\s*#"
+compute# less /etc/nova/nova.conf | egrep -v "^\s*$|^\s*#"
 ```
 
 ## コンピュートノードのNeutronと関連サービスを再起動
@@ -2268,7 +2270,7 @@ compute# tailf /var/log/neutron/neutron-linuxbridge-agent.log
 
 ## Neutronサービスの動作を確認
 
-`openstack network agent list`コマンドを実行してNeutronエージェントが正しく認識されており、稼働していることを確認します。
+controllerノードで`openstack network agent list`コマンドを実行してNeutronエージェントが正しく認識されており、稼働していることを確認します。
 
 ```
 controller# source admin-openrc
@@ -2383,8 +2385,7 @@ OpenStack Dashboardにadminユーザーでログインして、Externalネット
 | 外部ネットワーク | チェックを入れる |
 | サブネットの作成 | チェックを入れる |
 
-3. 「管理 > システム > ネットワーク」でExternalネットワークをクリック
-4. Externalネットワーク内にサブネットを作成(DHCPは無効)
+3. 「次へ」ボタンを押下
 
 サブネット
 
@@ -2397,6 +2398,8 @@ external-netで定義するIPアドレス及びその範囲は、OpenStackが実
 | IPバージョン | IPv4  |
 | ゲートウェイ | 10.0.0.1 |
 
+4. 「次へ」ボタンを押下
+
 サブネットの詳細
 
 | 項目 | 設定 |
@@ -2405,6 +2408,8 @@ external-netで定義するIPアドレス及びその範囲は、OpenStackが実
 | IPアドレス割当プール | 10.0.0.177,10.0.0.190 |
 
 IPアドレス割当プールはネットワークアドレスで定義したネットワーク範囲全てを割り当てても良い場合は定義する必要はありません。
+
+4. 「作成」ボタンを押下
 
 \clearpage
 
@@ -2423,11 +2428,17 @@ OpenStack Dashboardにdemoユーザーでログインして、インスタンス
 1. OpenStack Dashboardにdemoユーザーでログイン
 2. 「プロジェクト > ネットワーク > ネットワーク」でユーザーネットワークの作成
 
+ネットワーク
+
 | 項目 | 設定 |
 |-----|----- |
 | ネットワーク名 | user-net |
 | 管理状態有効 | チェックを入れる |
 | サブネットの作成 | チェックを入れる |
+
+3. 「次へ」ボタンを押下
+
+サブネット
 
 | 項目 | 設定 |
 |-----|----- |
@@ -2437,6 +2448,10 @@ OpenStack Dashboardにdemoユーザーでログインして、インスタンス
 | ゲートウェイIP | 192.168.0.1 |
 | ゲートウェイなし | チェックを入れない |
 
+4. 「次へ」ボタンを押下
+
+サブネットの詳細
+
 | 項目 | 設定 |
 |-----|----- |
 | DHCP有効 | チェックを入れる |
@@ -2445,9 +2460,11 @@ OpenStack Dashboardにdemoユーザーでログインして、インスタンス
 
 DNSサーバーを複数指定したい場合は1行毎に記述します。IPアドレス割当プールはネットワークアドレスで定義したネットワーク範囲全てを割り当てても良い場合は定義する必要はありません。
 
+5. 「作成」ボタンを押下
+
 \clearpage
 
-3. 「プロジェクト > ネットワーク > ルーター」でルーターを作成
+6. 「プロジェクト > ネットワーク > ルーター」でルーターを作成
 
 | 項目 | 設定 |
 |-----|----- |
@@ -2455,7 +2472,7 @@ DNSサーバーを複数指定したい場合は1行毎に記述します。IP�
 | 管理状態有効 | チェックを入れる |
 | 外部ネットワーク | external-net |
 
-4. 「プロジェクト > ネットワーク > ルーター」で作成した「myrouter」をクリックして、インターフェイスを追加
+7. 「プロジェクト > ネットワーク > ルーター」で作成した「myrouter」をクリックして、インターフェイスを追加
 
 | 項目 | 設定 |
 |-----|----- |
@@ -2469,7 +2486,7 @@ DNSサーバーを複数指定したい場合は1行毎に記述します。IP�
 フレーバーはインスタンスに設定する性能を定義するものです。従来のバージョンでは自動生成されていましたが、Pikeではデフォルトでフレーバーは定義されていません。
 
 1. OpenStack Dashboardにadminユーザーでログイン
-2. 「管理 > システム > フレーバー」を選択
+2. 「管理 > コンピュート > フレーバー」を選択
 3. 「フレーバーの作成」ボタンを押下
 4. フレーバー名、仮想CPU数、メモリー、ストレージサイズを定義
 5. 「フレーバーの作成」ボタンを押下
@@ -2482,7 +2499,7 @@ Ubuntuを動かす場合は、1vCPU,1GBメモリー,4GBストレージ以上の�
 OpenStackの上で動かすインスタンスのファイアウォール設定は、セキュリティグループで行います。ログイン後、次の手順でセキュリティグループを設定できます。
 
 1. OpenStack Dashboardにdemoユーザーでログイン
-2. 「プロジェクト > コンピュート > アクセスとセキュリティ」を選択
+2. 「プロジェクト > コンピュート > ネットワーク > セキュリティーグループ」を選択
 3. 「ルールの管理」ボタンを押下
 4. 「ルールの追加」で許可するルールを定義
 5. 「追加」ボタンを押下
@@ -2498,26 +2515,27 @@ OpenStackの上で動かすインスタンスのファイアウォール設定�
 OpenStackではインスタンスへのアクセスはデフォルトで公開鍵認証方式で行います。次の手順でキーペアを作成できます。
 
 1. OpenStack Dashboardにdemoユーザーでログイン
-2. 「プロジェクト > コンピュート > アクセスとセキュリティ」をクリック
-3. 「キーペア」タブをクリック
-4. 「キーペアの作成」ボタンを押下
-5. キーペア名を入力
-6. 「キーペアの作成」ボタンを押下
-7. キーペア（拡張子:pem）ファイルをダウンロード
+2. 「プロジェクト > コンピュート > キーペア」をクリック
+3. 「キーペアの作成」ボタンを押下
+4. キーペア名を入力
+5. 「キーペアの作成」ボタンを押下
+6. キーペア（拡張子:pem）ファイルをダウンロード
+
+既存のキーペアを使ってインスタンスにアクセスしたい場合は、キーペアのインポートを利用します。
+catコマンドで所有する*.pubキーを標準出力して、その内容を貼り付けます。
+
 
 ## インスタンスの起動
 
-前の手順でGlanceにCirrOSイメージを登録していますので、早速構築したOpenStack環境上でインスタンスを起動してみましょう。
+前の手順でGlanceにCirrOSイメージを登録していますので、早速構築したOpenStack環境上でインスタンスを起動してみましょう。インスタンスの起動画面は、米印のついた項目が必須の設定です。
 
 1. OpenStack Dashboardにdemoユーザーでログイン
 2. 「プロジェクト > コンピュート > イメージ」をクリック
 3. イメージ一覧から起動するOSイメージを選び、「インスタンスの起動」ボタンを押下
-4. 「インスタンスの起動」詳細タブで起動するインスタンス名、フレーバー、インスタンス数を設定
-5. アクセスとセキュリティタブで割り当てるキーペア、セキュリティーグループを設定
-6. ネットワークタブで割り当てるネットワークを設定
-7. 作成後タブで必要に応じてユーザーデータの入力（オプション）
-8. 高度な設定タブでパーティションなどの構成を設定（オプション）
-9. 右下の「起動」ボタンを押下
+4. インスタンス名、フレーバー、ネットワーク、セキュリティーグループ、キーペアなどを設定
+5. 最後に右下の「起動」ボタンを押下
+
+初回起動時は少々時間がかかることがあります。
 
 \clearpage
 
