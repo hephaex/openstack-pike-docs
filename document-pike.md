@@ -1,7 +1,7 @@
 ---
 documentclass: ltjsarticle
 title: OpenStack 構築手順書 Pike版
-date: 0.9.1 (2017/09/08)
+date: 0.9.2 (2017/09/11)
 author: 日本仮想化技術株式会社
 toc: yes
 output:
@@ -21,6 +21,8 @@ header-includes:
 |0.9.0-1|2017/09/07|Pike版 初版|
 |0.9.0-2|2017/09/08|要件などについて加筆|
 |0.9.1|2017/09/08|表記揺れや誤記の修正。DashboardのUI変更への対応|
+|0.9.2|2017/09/11|補足編として他のディストリビューションとの違いについて追加|
+
 
 ```
 筆者注:
@@ -2448,6 +2450,8 @@ OpenStack Dashboardにdemoユーザーでログインして、インスタンス
 | ゲートウェイIP | 192.168.0.1 |
 | ゲートウェイなし | チェックを入れない |
 
+\clearpage
+
 4. 「次へ」ボタンを押下
 
 サブネットの詳細
@@ -2461,8 +2465,6 @@ OpenStack Dashboardにdemoユーザーでログインして、インスタンス
 DNSサーバーを複数指定したい場合は1行毎に記述します。IPアドレス割当プールはネットワークアドレスで定義したネットワーク範囲全てを割り当てても良い場合は定義する必要はありません。
 
 5. 「作成」ボタンを押下
-
-\clearpage
 
 6. 「プロジェクト > ネットワーク > ルーター」でルーターを作成
 
@@ -2562,3 +2564,115 @@ client$ ssh -i mykey.pem cloud-user@instance-floating-ip
 ```
 
 その他、適切なポートを開放してインスタンスへのPingを許可したり、インスタンスでWebサーバーを起動して外部PCからアクセスしてみましょう。
+
+\clearpage
+
+
+# 補足資料
+
+## RHEL/CentOSとの違いについて
+
+現在多くのOSでOpenStackのインストールをサポートしています。OpenStack公式にもディストリビューション別のセットアップ手順が公開されています。
+
+<https://docs.openstack.org/pike/install/>
+
+本書はUbuntuでのセットアップ手順を掲載していますが、細かい部分は異なるものの、OpenStackの設定などは共通な部分が多いためUbuntu以外のディストリビューションを使う場合も役立つと思います。本書が取り扱っている内容の中でUbuntuとRHEL/CentOSでの相違点についてここで取り上げたいと思います。
+
+### サービスの取り扱いの違い
+
+対象としているUbuntu 16.04およびRHEL 7/CentOS 7はいずれもsystemdが使われています。
+しかし、これまでの慣習から、DebianベースのUbuntuは「インストールしたサービスは起動するように設定しても問題ないだろう」という思想から、パッケージのインストール直後はサービスが起動します。また、再起動後も自動的にサービスが起動するように設定されていることがほとんどです。
+
+一方、RHELやCentOSでは`systemctl start`コマンドを使わない限り、サービスは起動しません。また、`systemctl enable`コマンドを使わない限り、サービスの永続化(自動起動)は設定されません。
+
+|                    | Ubuntu |   RHEL   |
+| ------------------ | ------ | -------- |
+| サービスの初回起動 | される | されない |
+| 自動起動設定       | される | されない |
+
+
+### パッケージリポジトリー
+
+自由に利用できるリポジトリーはそれぞれ次の通りです。
+
+#### Ubuntu
+
+[Ubuntu Cloud Archive](https://wiki.ubuntu.com/OpenStack/CloudArchive)に掲載されています。このリポジトリーはLTSバージョンのUbuntuで利用できます。
+
+#### RHEL 7
+
+[RDOプロジェクト](https://www.rdoproject.org/)が提供するリポジトリーのパッケージが利用できます。次のように実行すればPikeリリースの最新のパッケージが利用可能です。
+
+```
+# yum install -y yum install https://repos.fedorapeople.org/repos/openstack/openstack-pike/rdo-release-pike.rpm
+```
+
+RHEL7で構築する場合、パッケージのインストール前に、通常は有効化されていない次のリポジトリーを有効にする必要があります。
+
+* rhel-7-server-optional-rpms
+* rhel-7-server-rh-common-rpms
+* rhel-7-server-extras-rpms
+
+#### CentOS 7
+
+[RDOプロジェクト](https://www.rdoproject.org/)が提供するリポジトリーのパッケージが利用できます。次のように実行すればPikeリリースの最新のパッケージが利用可能です。
+
+```
+# yum install https://repos.fedorapeople.org/repos/openstack/openstack-pike/rdo-release-pike.rpm
+```
+
+[CentOS Cloud SIG](https://wiki.centos.org/SpecialInterestGroup/Cloud)が提供しているパッケージも利用可能です。こちらのPikeリリースの最新版パッケージを利用する場合は、次のように実行します。
+
+```
+# yum install centos-release-openstack-pike
+```
+
+### OpenStack以外のパッケージやファイル名の違い
+
+サービス名やモジュール名が異なります。設定ファイルもそれに合わせて異なります。
+
+|          Ubuntu           |            RHEL            |
+| ------------------------- | -------------------------- |
+| apache2                   | httpd                      |
+| libapache2-mod-wsgi       | mod_wsgi                   |
+| /etc/apache2/apache2.conf | /etc/httpd/conf/httpd.conf |
+
+### パッケージ名の違い
+
+RHELやCentOSではパッケージ名の頭に`openstack-`がつきます。
+
+|  Ubuntu  |        RHEL        |
+| -------- | ------------------ |
+| keystone | openstack-keystone |
+| glance   | openstack-glance   |
+
+### Neutronコンポーンメントにおける相違点
+
+Neutron周りはパッケージの構成や追加でインストールするコンポーネントが異なります。
+
+* controller-ubuntu
+
+```
+# apt install neutron-server neutron-plugin-ml2 \
+  neutron-linuxbridge-agent neutron-l3-agent neutron-dhcp-agent \
+  neutron-metadata-agent
+```
+
+* controller-rhel
+
+```
+# yum install openstack-neutron openstack-neutron-ml2 \
+  openstack-neutron-linuxbridge ebtables
+```
+
+* compute-ubuntu
+
+```
+# apt install neutron-linuxbridge-agent
+```
+
+* compute-rhel
+
+```
+# yum install openstack-neutron-linuxbridge ebtables ipset
+```
